@@ -6,6 +6,7 @@ import (
 	"flag"
 	"log"
 	"math/rand"
+	"strconv"
 	"time"
 
 	"github.com/tcotav/travelbot/bot"
@@ -58,16 +59,18 @@ func main() {
 	shipName := flag.String("ship", "TravelBot", "The name of the ship")
 
 	// get the ship speed
-	shipSpeed := flag.Float64("speed", 2.0, "The speed of the ship")
+	shipSpeed := flag.String("speed", "2.0", "The speed of the ship")
 
 	// get the sleep time
-	sleepTime := flag.Int("sleep", 2, "The time to sleep between moves")
+	sleepTime := flag.String("sleep", "2", "The time to sleep between moves")
+
+	flag.Parse()
 
 	routeMap := make(map[string]loc.Location)
 
 	err := json.Unmarshal(jsonData, &routeMap)
 	if err != nil {
-		log.Fatalf("unmarhsall failed, %v", err)
+		log.Fatalf("unmarshall failed, %v", err)
 	}
 	stopMetric := promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "spaceship_total_stops_made",
@@ -79,9 +82,19 @@ func main() {
 		Help: "The total distance traversed by the ship",
 	}, []string{"ship_name"})
 
+	floatSpeed, err := strconv.ParseFloat(*shipSpeed, 64)
+	if err != nil {
+		log.Fatalf("float convert of %s failed, %s", *shipSpeed, err.Error())
+	}
+
+	floatSleep, err := strconv.Atoi(*sleepTime)
+	if err != nil {
+		log.Fatalf("Int convert of %s failed, %s", *sleepTime, err.Error())
+	}
+
 	b := bot.NewTravelBot(
 		*shipName,
-		*shipSpeed,
+		floatSpeed,
 		loc.Point{X: 0, Y: 0},
 		bot.NewRouteList(getRandomRoute(&routeMap)),
 		routeMap,
@@ -89,7 +102,7 @@ func main() {
 		distanceMetric,
 	)
 
-	mainloop(b, *sleepTime)
+	mainloop(b, floatSleep)
 
 }
 
